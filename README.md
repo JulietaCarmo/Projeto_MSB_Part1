@@ -12,18 +12,17 @@ This project aims to understand the crucial role of monocytes in the development
 
 ## Getting Started
 
-### Prerequisites
+### Prerequisites and Dataset information
 This project was developed on RStudio.
+The datasets used (`BAL_countsbarcodes.tsv`, `BAL_countsfeatures.tsv` and `BAL_countsmatrix.tsv`) can be found in here: `https://singlecell.broadinstitute.org/single_cell/study/SCP2409/tobacco-smoke-exposure-recruits-inflammatory-airspace-monocytes-establishing-a-lung-niche-conducive-to-elevated-mycobacterium-tuberculosis-growth-bal-data#study-download`, after signing in into an account. 
 
 ### Installation
 1. Clone this repository or download the project file `.R`.
-2. Open the notebook `Project.R` using RStudio.
-3. Upload the dataset files `BAL_countsbarcodes.tsv`, `BAL_countsfeatures.tsv` and `BAL_countsmatrix.tsv` to the Project environment.
+2. Open the project `Project.R` using RStudio.
+3. Download the dataset files `BAL_countsbarcodes.tsv`, `BAL_countsfeatures.tsv` and `BAL_countsmatrix.tsv` to the Project environment.
 4. Ensure all required libraries are installed by running the library code block. For example, the `Seurat` package is installed using: `install.packages(Seurat)`; and the `clusterProfiler` package is installed using: `BiocManager::install(clusterProfiler)`.
 
 ## Usage
 - Run all pieces of code sequentially to execute the data loading, preprocessing, model training, and ... as outlined.
 
-## Dataset
-The dataset files used were `BAL_countsbarcodes.tsv`, `BAL_countsfeatures.tsv` and `BAL_countsmatrix.tsv`. Ensure this file is uploaded in the same directory as the main R file in RStudio.
 
