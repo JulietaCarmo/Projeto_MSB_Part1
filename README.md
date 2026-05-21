@@ -1,4 +1,4 @@
-# Tobacco smoke exposure and inflammatory responce
+# Immune cell response to tobacco smoke exposure
 
 This project aims to understand the crucial role of monocytes in the development of Mycobacterium tuberculosis.
 
