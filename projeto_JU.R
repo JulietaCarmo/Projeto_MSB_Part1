@@ -280,13 +280,15 @@ de_5 <- head(de, n=5)
 
 # inspect columns first
 head(de)
+length(de)
+dim(de) # [1] 13428     5
 colnames(de)
 
 # build ranked gene list
 # for DESeq2 results in Seurat, avg_log2FC may differ by version;
 # sometimes you may have avg_log2FC, sometimes log2FoldChange-like output
-gene_list <- de_5$avg_log2FC
-names(gene_list) <- rownames(de_5)
+gene_list <- de$avg_log2FC
+names(gene_list) <- rownames(de)
 
 # remove NA and sort
 gene_list <- na.omit(gene_list)
@@ -467,9 +469,13 @@ sig_genes_df <- subset(de_ora, p_val < 0.05 &
                          abs(avg_log2FC) > 0.25)
 # abs(avg_log2FC) > 2 returns nothing, so I tried > 0.25 and > 0.1
   # with > 0.25 and > 0.1 --> only got 1 gene --> so change p_val_adj to p_val
+  # we use  
 # Name the vector and omit NA values
+sig_genes_df <- subset(de_ora, p_val < 0.05 & 
+                         abs(avg_log2FC) > 2)
 genes <- rownames(sig_genes_df)
 genes <- na.omit(genes)
+# 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
 
 length(genes) # [1] 1 ---> [1] 691
 head(genes) # [1] "SEMA6B" ---> [1] "SEMA6B"   "HPGDS"    "RASGEF1B" "INSIG1"   "GLO1"     "ITGAE"
@@ -487,7 +493,7 @@ eGO_Monocyte <- enrichGO(gene = genes,
 # 10.15% of input gene IDs are fail to map...
 head(eGO_Monocyte)
 
-dotplot(eGO_Monocyte, showCategory = 10)
+#dotplot(eGO_Monocyte, showCategory = 10)
 
 # Upset Plot
 upsetplot(eGO_Monocyte)
