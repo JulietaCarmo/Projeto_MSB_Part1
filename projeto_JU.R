@@ -522,71 +522,50 @@ celltype <- "BAL-Monocytes"
 
 markers.celulas <- readRDS("markers.celulas.rds")
 
-# differential-expression table for BAL-Monocytes
+# differential-expression table for Macrophage1
 de_ora_kegg <- markers.celulas[[celltype]]
 
 head(de_ora_kegg)
-colnames(de_ora_kegg)
-head(rownames(de_ora_kegg))
 
-# Convert gene IDs for enrichKEGG function
-ids <- bitr(rownames(de_ora_kegg), fromType = "SYMBOL", 
-            toType = "ENTREZID", OrgDb = organism)
-head(ids)
+gene_list <- de_ora_kegg$avg_log2FC
+names(gene_list) <- rownames(de_ora_kegg)
 
-# remove duplicate IDS
-dedup_ids = ids[!duplicated(ids[c("SYMBOL")]),]
+gene_list <- na.omit(gene_list)
+gene_list <- sort(gene_list, decreasing = TRUE)
 
-head(dedup_ids)
+ids <- bitr(names(gene_list), fromType = "SYMBOL", 
+            toType = "ENTREZID", OrgDb = org.Hs.eg.db)
 
-# Create a new dataframe df2 which has only the genes which were successfully mapped using the bitr function above
-df2 = de_ora_kegg[rownames(de_ora_kegg) %in% dedup_ids$SYMBOL,]
+ids <- ids[!duplicated(ids$SYMBOL), ]
 
-head(rownames(df2))
-head(df2)
+de_kegg <- de_ora_kegg[rownames(de_ora_kegg) %in% ids$SYMBOL, ]
 
-# Create a new column in df2 with the corresponding ENTREZ IDs
-df2$ENTREZID = dedup_ids$ENTREZID
-head(df2)
+de_kegg$ENTREZID <- ids$ENTREZID[match(rownames(de_kegg), 
+                                       ids$SYMBOL)]
+head(de_kegg)
 
-# Create a vector of the gene unuiverse
-ora_kegg_gene_list <- df2$avg_log2FC
+kegg_gene_list <- de_kegg$avg_log2FC
+names(kegg_gene_list) <- de_kegg$ENTREZID
+kegg_gene_list <- na.omit(kegg_gene_list)
+kegg_gene_list <- sort(kegg_gene_list, decreasing = TRUE)
 
-# Name vector with ENTREZ ids
-names(ora_kegg_gene_list) <- df2$ENTREZID
+kegg_sig_genes_df <- subset(de_kegg, 
+                            p_val < 0.1 & abs(avg_log2FC) > 1)
 
-# omit any NA values 
-ora_kegg_gene_list <-na.omit(ora_kegg_gene_list)
+kegg_genes <- kegg_sig_genes_df$avg_log2FC
+names(kegg_genes) <- kegg_sig_genes_df$ENTREZID
+kegg_genes <- na.omit(kegg_genes)
+kegg_genes <- names(kegg_genes)[abs(kegg_genes) > 1]
 
-# sort the list in decreasing order
-ora_kegg_gene_list = sort(ora_kegg_gene_list, decreasing = TRUE)
+kegg_organism <- "hsa"
+kk_Monocytes <- enrichKEGG(gene = kegg_genes, 
+                             universe = names(kegg_gene_list), 
+                             organism = kegg_organism, 
+                             keyType = "ncbi-geneid", 
+                             pvalueCutoff = 0.05)
 
-head(ora_kegg_gene_list)
-
-# Exctract significant results from df2
-ora_kegg_sig_genes_df = subset(df2, p_val < 0.05 & 
-                                 abs(avg_log2FC) > 2)
-
-head(ora_kegg_sig_genes_df)
-
-genes_kegg <- ora_kegg_sig_genes_df$ENTREZID
-genes_kegg <- na.omit(genes_kegg)
-# 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
-
-length(genes_kegg) # [1] 3
-head(genes_kegg) # [1] "IL1B"   "IFI27"  "CYP1B1"
-
-head(genes_kegg)
-str(genes_kegg)
-
-## Create enrichKEGG object
-eKEGG_Monocyts <- enrichKEGG(gene = genes_kegg, 
-                             universe = names(ora_kegg_gene_list), 
-                             organism = "hsa", 
-                             pvalueCutoff = 0.05, 
-                             keyType = "ncbi-geneid")
-head(eKEGG_Monocyts)
-# No results
+barplot(kk_Monocytes, showCategory = 10, 
+        title = "KEGG Pathway Enrichment", font.size = 8)
 
 #############################################
 ## Over representation analysis (ORA) - Macrophage1
@@ -595,7 +574,7 @@ organism = "org.Hs.eg.db"
 celltype <- "Macrophage1"
 markers.celulas <- readRDS("markers.celulas.rds")
 
-# differential-expression table for BAL-Monocytes
+# differential-expression table for Macrophage1
 de_ora <- markers.celulas[[celltype]]
 
 # inspect columns first
@@ -616,13 +595,13 @@ head(names(gene_list))
 # ora - extract significant genes only
 # Name the vector and omit NA values
 # padj ---> p_val
-sig_genes_df <- subset(de_ora, p_val < 0.05 & 
-                         abs(avg_log2FC) > 2)
+sig_genes_df <- subset(de_ora, p_val < 0.1 & 
+                         abs(avg_log2FC) > 1)
 genes <- rownames(sig_genes_df)
 genes <- na.omit(genes)
 
-length(genes) # [1] 2
-head(genes) # [1] "IFI27" "ITIH5"
+length(genes) # 45
+head(genes) # 
 
 # Create enrichGO object
 eGO_Macrophage1 <- enrichGO(gene = genes,
@@ -635,97 +614,76 @@ eGO_Macrophage1 <- enrichGO(gene = genes,
                          pvalueCutoff = 0.05, 
                          qvalueCutoff = 0.10)
 # 18.26% of input gene IDs are fail to map...
+dotplot(eGO_Macrophage1, showCategory = 10, 
+        font.size = 8, label_format = 30)
+
+saveRDS(eGO_Macrophage1, file = "eGO_Macrophage1.rds")
+
 head(eGO_Macrophage1)
 
-length(genes)
-
-#dotplot(eGO_Macrophage1, showCategory = 10)
-
 # Upset Plot
-upsetplot(eGO_Macrophage1)
+upsetplot(eGO_M)
 
 # Bar plot
-barplot(eGO_Monocyte, drop = TRUE, showCategory = 10, 
+barplot(eGO_Macrophage1, drop = TRUE, showCategory = 10, 
         title = "GO Biological Pathways", font.size = 8)
 
 # Encrichment plot map
-y <- pairwise_termsim(eGO_Monocyte) 
+y <- pairwise_termsim(eGO_Macrophage1) 
 emapplot(y)
 
 # Category Netplot
-cnetplot(eGO_Monocyte, foldChange = gene_list)
+cnetplot(eGO_Macrophage1, foldChange = gene_list)
 
-
-# NOT DONE!!!
 ##### ORA - KEGG Pathway Enrichment
 organism = "org.Hs.eg.db"
 # Escolhi este tipo de celulas pq foi o que tinhas usado antes
-celltype <- "BAL-Monocytes"
+celltype <- "Macrophage1"
 
 markers.celulas <- readRDS("markers.celulas.rds")
 
-# differential-expression table for BAL-Monocytes
+# differential-expression table for Macrophage1
 de_ora_kegg <- markers.celulas[[celltype]]
 
 head(de_ora_kegg)
-colnames(de_ora_kegg)
-head(rownames(de_ora_kegg))
 
-# Convert gene IDs for enrichKEGG function
-ids <- bitr(rownames(de_ora_kegg), fromType = "SYMBOL", 
-            toType = "ENTREZID", OrgDb = organism)
-head(ids)
+gene_list <- de_ora_kegg$avg_log2FC
+names(gene_list) <- rownames(de_ora_kegg)
 
-# remove duplicate IDS
-dedup_ids = ids[!duplicated(ids[c("SYMBOL")]),]
+gene_list <- na.omit(gene_list)
+gene_list <- sort(gene_list, decreasing = TRUE)
 
-head(dedup_ids)
+ids <- bitr(names(gene_list), fromType = "SYMBOL", 
+            toType = "ENTREZID", OrgDb = org.Hs.eg.db)
 
-# Create a new dataframe df2 which has only the genes which were successfully mapped using the bitr function above
-df2 = de_ora_kegg[rownames(de_ora_kegg) %in% dedup_ids$SYMBOL,]
+ids <- ids[!duplicated(ids$SYMBOL), ]
 
-head(rownames(df2))
-head(df2)
+de_kegg <- de_ora_kegg[rownames(de_ora_kegg) %in% ids$SYMBOL, ]
 
-# Create a new column in df2 with the corresponding ENTREZ IDs
-df2$ENTREZID = dedup_ids$ENTREZID
-head(df2)
+de_kegg$ENTREZID <- ids$ENTREZID[match(rownames(de_kegg), 
+                                       ids$SYMBOL)]
+head(de_kegg)
 
-# Create a vector of the gene unuiverse
-ora_kegg_gene_list <- df2$avg_log2FC
+kegg_gene_list <- de_kegg$avg_log2FC
+names(kegg_gene_list) <- de_kegg$ENTREZID
+kegg_gene_list <- na.omit(kegg_gene_list)
+kegg_gene_list <- sort(kegg_gene_list, decreasing = TRUE)
 
-# Name vector with ENTREZ ids
-names(ora_kegg_gene_list) <- df2$ENTREZID
+kegg_sig_genes_df <- subset(de_kegg, 
+                            p_val < 0.1 & abs(avg_log2FC) > 1)
 
-# omit any NA values 
-ora_kegg_gene_list <-na.omit(ora_kegg_gene_list)
+kegg_genes <- kegg_sig_genes_df$avg_log2FC
+names(kegg_genes) <- kegg_sig_genes_df$ENTREZID
+kegg_genes <- na.omit(kegg_genes)
+kegg_genes <- names(kegg_genes)[abs(kegg_genes) > 1]
 
-# sort the list in decreasing order
-ora_kegg_gene_list = sort(ora_kegg_gene_list, decreasing = TRUE)
+kegg_organism <- "hsa"
+kk_Macrophage1 <- enrichKEGG(gene = kegg_genes, 
+                             universe = names(kegg_gene_list), 
+                             organism = kegg_organism, 
+                             keyType = "ncbi-geneid", 
+                             pvalueCutoff = 0.05)
 
-head(ora_kegg_gene_list)
+barplot(kk_Macrophage1, showCategory = 10, 
+        title = "KEGG Pathway Enrichment", font.size = 8)
 
-# Exctract significant results from df2
-ora_kegg_sig_genes_df = subset(df2, p_val < 0.05 & 
-                                 abs(avg_log2FC) > 2)
-
-head(ora_kegg_sig_genes_df)
-
-genes_kegg <- ora_kegg_sig_genes_df$ENTREZID
-genes_kegg <- na.omit(genes_kegg)
-# 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
-
-length(genes_kegg) # [1] 3
-head(genes_kegg) # [1] "IL1B"   "IFI27"  "CYP1B1"
-
-head(genes_kegg)
-str(genes_kegg)
-
-## Create enrichKEGG object
-eKEGG_Monocyts <- enrichKEGG(gene = genes_kegg, 
-                             universe = names(ora_kegg_gene_list), 
-                             organism = "hsa", 
-                             pvalueCutoff = 0.05, 
-                             keyType = "ncbi-geneid")
-head(eKEGG_Monocyts)
-# No results
