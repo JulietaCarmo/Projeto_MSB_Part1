@@ -1,6 +1,6 @@
 # Immune cell response to tobacco smoke exposure
 
-This project aims to understand the crucial role of monocytes in the development of Mycobacterium tuberculosis.
+This project aims to understand the crucial role of immune cells in response to tobaco smoke. 
 
 ## Academic Information
 - 📘 Course: Mollecular Systems Biology — Academic Year 2025/2026
