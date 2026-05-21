@@ -7,6 +7,11 @@ library(dplyr)
 library(RColorBrewer)
 library(ggsci)
 library(DESeq2)
+library(clusterProfiler)
+library(enrichplot)
+library(DOSE)
+library(europepmc)
+library(org.Hs.eg.db)
 
 
 #barcodes <- read.table("C:/Users/anaan/OneDrive - Universidade de Aveiro/Attachments/Desktop/OneDrive - Universidade de Coimbra/Biologia de sistemas/Parte 1/projeto/dados/barcodes.tsv", 
@@ -262,12 +267,6 @@ saveRDS(markers.celulas, file = "markers.celulas.rds")
 
 ###############################
 ################ GSE for one cell type
-library(clusterProfiler)
-library(enrichplot)
-library(DOSE)
-library(europepmc)
-library(org.Hs.eg.db)
-
 organism = "org.Hs.eg.db"
 # Escolhi este tipo de celulas pq foi o que tinhas usado antes
 celltype <- "BAL-Monocytes"
@@ -400,6 +399,7 @@ kk2 <- gseKEGG(geneList = kegg_gene_list,
   # Very common in single-cell analyses.
 # Invalid p-values detected --> result of the previous errors
 
+saveRDS(kk2, file = "gseKEGG_Monocyts.rds")
 
 head(kk2, 10)
 head(kk2@result)
@@ -410,6 +410,11 @@ kk2@result <- kk2@result[!is.na(kk2@result$pvalue), ]
 # DotPlot
 dotplot(kk2, showCategory = 10, title = "Enriched Pathways" , 
         split=".sign") + facet_grid(.~.sign)
+dotplot(kk2, showCategory = 5, title = "Enriched Pathways" , 
+        split=".sign") + facet_grid(.~.sign)
+dotplot(kk2, showCategory = 10, title = "Enriched Pathways" , 
+        split=".sign", font.size = 8, label_format = 30) + 
+  facet_grid(.~.sign)
 
 # Encrichment plot map
 x2 <- pairwise_termsim(kk2) 
@@ -510,7 +515,6 @@ emapplot(y)
 cnetplot(eGO_Monocyte, foldChange = gene_list)
 
 
-# NOT DONE!!!
 ##### ORA - KEGG Pathway Enrichment
 organism = "org.Hs.eg.db"
 # Escolhi este tipo de celulas pq foi o que tinhas usado antes
@@ -585,21 +589,22 @@ head(eKEGG_Monocyts)
 # No results
 
 #############################################
+## Over representation analysis (ORA) - Macrophage1
+# differential-expression table for Macrophage1
+organism = "org.Hs.eg.db"
 celltype <- "Macrophage1"
+markers.celulas <- readRDS("markers.celulas.rds")
 
 # differential-expression table for BAL-Monocytes
-de <- markers.celulas[[celltype]]
-de_5 <- head(de, n=5)
+de_ora <- markers.celulas[[celltype]]
 
 # inspect columns first
-head(de)
-colnames(de)
+head(de_ora)
+colnames(de_ora)
 
 # build ranked gene list
-# for DESeq2 results in Seurat, avg_log2FC may differ by version;
-# sometimes you may have avg_log2FC, sometimes log2FoldChange-like output
-gene_list <- de_5$avg_log2FC
-names(gene_list) <- rownames(de_5)
+gene_list <- de_ora$avg_log2FC
+names(gene_list) <- rownames(de_ora)
 
 # remove NA and sort
 gene_list <- na.omit(gene_list)
@@ -608,31 +613,119 @@ gene_list <- sort(gene_list, decreasing = TRUE)
 head(gene_list)
 head(names(gene_list))
 
-# run GSEA GO
-gse <- gseGO(geneList = gene_list, 
-             OrgDb = org.Hs.eg.db, 
-             keyType = "GO", 
-             ont = "BP", 
-             minGSSize = 10, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             verbose = TRUE, 
-             pAdjustMethod = "none")
+# ora - extract significant genes only
+# Name the vector and omit NA values
+# padj ---> p_val
+sig_genes_df <- subset(de_ora, p_val < 0.05 & 
+                         abs(avg_log2FC) > 2)
+genes <- rownames(sig_genes_df)
+genes <- na.omit(genes)
 
-head(gse@result)
+length(genes) # [1] 2
+head(genes) # [1] "IFI27" "ITIH5"
 
-# plots
-dotplot(gse, showCategory = 10, split = ".sign") + facet_grid(. ~ .sign)
+# Create enrichGO object
+eGO_Macrophage1 <- enrichGO(gene = genes,
+                         universe = names(gene_list),
+                         OrgDb = organism, 
+                         keyType = 'SYMBOL',
+                         readable = T,
+                         ont = "BP",
+                         pAdjustMethod = "BH",
+                         pvalueCutoff = 0.05, 
+                         qvalueCutoff = 0.10)
+# 18.26% of input gene IDs are fail to map...
+head(eGO_Macrophage1)
 
-x <- pairwise_termsim(gse)
-emapplot(x, showCategory = 10)
+length(genes)
 
-ridgeplot(gse) + labs(x = "enrichment distribution")
+#dotplot(eGO_Macrophage1, showCategory = 10)
 
-# literature trend for top 3 terms
-terms <- gse@result$Description[1:3]
-pmcplot(terms, 2010:2025, proportion = FALSE)
+# Upset Plot
+upsetplot(eGO_Macrophage1)
 
-saveRDS(gse, file = "gse_Macrophage1.rds")
-0
+# Bar plot
+barplot(eGO_Monocyte, drop = TRUE, showCategory = 10, 
+        title = "GO Biological Pathways", font.size = 8)
 
+# Encrichment plot map
+y <- pairwise_termsim(eGO_Monocyte) 
+emapplot(y)
+
+# Category Netplot
+cnetplot(eGO_Monocyte, foldChange = gene_list)
+
+
+# NOT DONE!!!
+##### ORA - KEGG Pathway Enrichment
+organism = "org.Hs.eg.db"
+# Escolhi este tipo de celulas pq foi o que tinhas usado antes
+celltype <- "BAL-Monocytes"
+
+markers.celulas <- readRDS("markers.celulas.rds")
+
+# differential-expression table for BAL-Monocytes
+de_ora_kegg <- markers.celulas[[celltype]]
+
+head(de_ora_kegg)
+colnames(de_ora_kegg)
+head(rownames(de_ora_kegg))
+
+# Convert gene IDs for enrichKEGG function
+ids <- bitr(rownames(de_ora_kegg), fromType = "SYMBOL", 
+            toType = "ENTREZID", OrgDb = organism)
+head(ids)
+
+# remove duplicate IDS
+dedup_ids = ids[!duplicated(ids[c("SYMBOL")]),]
+
+head(dedup_ids)
+
+# Create a new dataframe df2 which has only the genes which were successfully mapped using the bitr function above
+df2 = de_ora_kegg[rownames(de_ora_kegg) %in% dedup_ids$SYMBOL,]
+
+head(rownames(df2))
+head(df2)
+
+# Create a new column in df2 with the corresponding ENTREZ IDs
+df2$ENTREZID = dedup_ids$ENTREZID
+head(df2)
+
+# Create a vector of the gene unuiverse
+ora_kegg_gene_list <- df2$avg_log2FC
+
+# Name vector with ENTREZ ids
+names(ora_kegg_gene_list) <- df2$ENTREZID
+
+# omit any NA values 
+ora_kegg_gene_list <-na.omit(ora_kegg_gene_list)
+
+# sort the list in decreasing order
+ora_kegg_gene_list = sort(ora_kegg_gene_list, decreasing = TRUE)
+
+head(ora_kegg_gene_list)
+
+# Exctract significant results from df2
+ora_kegg_sig_genes_df = subset(df2, p_val < 0.05 & 
+                                 abs(avg_log2FC) > 2)
+
+head(ora_kegg_sig_genes_df)
+
+genes_kegg <- ora_kegg_sig_genes_df$ENTREZID
+genes_kegg <- na.omit(genes_kegg)
+# 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
+
+length(genes_kegg) # [1] 3
+head(genes_kegg) # [1] "IL1B"   "IFI27"  "CYP1B1"
+
+head(genes_kegg)
+str(genes_kegg)
+
+## Create enrichKEGG object
+eKEGG_Monocyts <- enrichKEGG(gene = genes_kegg, 
+                             universe = names(ora_kegg_gene_list), 
+                             organism = "hsa", 
+                             pvalueCutoff = 0.05, 
+                             keyType = "ncbi-geneid")
+head(eKEGG_Monocyts)
+# No results
