@@ -509,6 +509,7 @@ emapplot(y)
 # Category Netplot
 cnetplot(eGO_Monocyte, foldChange = gene_list)
 
+
 # NOT DONE!!!
 ##### ORA - KEGG Pathway Enrichment
 organism = "org.Hs.eg.db"
@@ -517,110 +518,69 @@ celltype <- "BAL-Monocytes"
 
 markers.celulas <- readRDS("markers.celulas.rds")
 
-de_kegg <- markers.celulas[[celltype]]
+# differential-expression table for BAL-Monocytes
+de_ora_kegg <- markers.celulas[[celltype]]
 
-head(de_kegg)
-colnames(de_kegg)
+head(de_ora_kegg)
+colnames(de_ora_kegg)
+head(rownames(de_ora_kegg))
 
-# using all genes, not only top 5
-genes_df <- data.frame(SYMBOL = rownames(de_kegg), 
-                       log2FC = de_kegg$avg_log2FC)
-head(genes_df)
+# Convert gene IDs for enrichKEGG function
+ids <- bitr(rownames(de_ora_kegg), fromType = "SYMBOL", 
+            toType = "ENTREZID", OrgDb = organism)
+head(ids)
 
-# Convert gene IDs for gseKEGG
-gene_ids <- bitr(genes_df$SYMBOL, 
-                 fromType = "SYMBOL", 
-                 toType = "ENTREZID", 
-                 OrgDb = organism)
-# 10.15% of input gene IDs are fail to map
-head(gene_ids)
+# remove duplicate IDS
+dedup_ids = ids[!duplicated(ids[c("SYMBOL")]),]
 
-# Merge IDs with fold changes
-genes_df <- merge(genes_df, gene_ids, by = "SYMBOL")
-head(genes_df)
+head(dedup_ids)
 
-# Remove rows without log2FoldChange or ENTREZID
-genes_df <- genes_df[!is.na(genes_df$log2FC) &
-                       !is.na(genes_df$ENTREZID), ]
-head(genes_df)
+# Create a new dataframe df2 which has only the genes which were successfully mapped using the bitr function above
+df2 = de_ora_kegg[rownames(de_ora_kegg) %in% dedup_ids$SYMBOL,]
 
-# Create ranked KEGG gene list
-kegg_gene_list <- genes_df$log2FC
-names(kegg_gene_list) <- as.character(genes_df$ENTREZID)
+head(rownames(df2))
+head(df2)
 
-head(kegg_gene_list)
+# Create a new column in df2 with the corresponding ENTREZ IDs
+df2$ENTREZID = dedup_ids$ENTREZID
+head(df2)
 
-# Remove NA values and sort decreasing
-kegg_gene_list <- na.omit(kegg_gene_list)
-kegg_gene_list <- sort(kegg_gene_list, decreasing = TRUE)
+# Create a vector of the gene unuiverse
+ora_kegg_gene_list <- df2$avg_log2FC
 
-# Diagnostic checks
-length(kegg_gene_list) # [1] 12067
+# Name vector with ENTREZ ids
+names(ora_kegg_gene_list) <- df2$ENTREZID
 
-# KEGG GSEA
-sum(duplicated(names(kegg_gene_list))) # [1] 0
-head(kegg_gene_list)
+# omit any NA values 
+ora_kegg_gene_list <-na.omit(ora_kegg_gene_list)
 
-## Create gseKEGG object
-set.seed(123)
-# human KEGG code
-kegg_organism <- "hsa"
+# sort the list in decreasing order
+ora_kegg_gene_list = sort(ora_kegg_gene_list, decreasing = TRUE)
 
-kk2 <- gseKEGG(geneList = kegg_gene_list,
-               organism = kegg_organism,
-               minGSSize = 10,   # so that the pathway doesn't look artificially significant
-               maxGSSize = 500,
-               pvalueCutoff = 0.05,
-               verbose = TRUE,
-               pAdjustMethod = "none")
-# There are ties in the preranked stats (13.79% of the list) - acceptable, but not ideal
-# There were 5 pathways for which P-values were not calculated properly
-# This happens when: 
-# nearly all genes in a pathway go in one direction
-# enrichment score becomes unstable
-# permutation statistics fail
-# Very common in single-cell analyses.
-# Invalid p-values detected --> result of the previous errors
+head(ora_kegg_gene_list)
 
+# Exctract significant results from df2
+ora_kegg_sig_genes_df = subset(df2, p_val < 0.05 & 
+                                 abs(avg_log2FC) > 2)
 
-head(kk2, 10)
-head(kk2@result)
+genes_kegg <- rownames(ora_kegg_sig_genes_df)
+genes_kegg <- na.omit(genes_kegg)
+# 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
 
-# remove NA p-values directly in the object
-kk2@result <- kk2@result[!is.na(kk2@result$pvalue), ]
+length(genes_kegg) # [1] 3
+head(genes_kegg) # [1] "IL1B"   "IFI27"  "CYP1B1"
 
-# DotPlot
-dotplot(kk2, showCategory = 10, title = "Enriched Pathways" , 
-        split=".sign") + facet_grid(.~.sign)
-
-# Encrichment plot map
-x2 <- pairwise_termsim(kk2) 
-emapplot(x2)
-
-# Category Netplot
-cnetplot(kk2, foldChange = kegg_gene_list)
-
-# Ridgeplot
-ridgeplot(kk2) + labs(x = "enrichment distribution")
-
-# GSEA Plot
-gseaplot(kk2, by = "all", title = kk2$Description[1], geneSetID = 1)
-
-# Pathview
-library(pathview)
-kk2@result$ID # [1] "hsa04668" "hsa05323" "hsa00513" "hsa04657" "hsa05134" "hsa05140"
-
-# Produce the native KEGG plot (PNG)
-dme <- pathview(gene.data = kegg_gene_list, pathway.id = "hsa04668", species = kegg_organism)
-
-# Produce a different plot (PDF) (not displayed here)
-dme <- pathview(gene.data = kegg_gene_list, pathway.id = "hsa04668", species = kegg_organism, kegg.native = F)
+## Create enrichKEGG object
+eKEGG_Monocyts <- enrichKEGG(gene = genes_kegg, 
+                             universe = names(ora_kegg_gene_list), 
+                             organism = organism, 
+                             pvalueCutoff = 0.05, 
+                             keyType = "ncbi-geneid")
+head(eKEGG_Monocyts)
 
 
 
-
-
-#############################################
+~#############################################
 celltype <- "Macrophage1"
 
 # differential-expression table for BAL-Monocytes
@@ -670,5 +630,5 @@ terms <- gse@result$Description[1:3]
 pmcplot(terms, 2010:2025, proportion = FALSE)
 
 saveRDS(gse, file = "gse_Macrophage1.rds")
-.....
+0
 
