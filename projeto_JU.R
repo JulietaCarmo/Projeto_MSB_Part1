@@ -684,6 +684,12 @@ kk_Macrophage1 <- enrichKEGG(gene = kegg_genes,
                              keyType = "ncbi-geneid", 
                              pvalueCutoff = 0.05)
 
+saveRDS(kk_Macrophage1, file = "kk_Macrophage1.rds")
+
 barplot(kk_Macrophage1, showCategory = 10, 
         title = "KEGG Pathway Enrichment", font.size = 8)
+
+dotplot(kk_Macrophage1, showCategory = 10, font.size = 8)
+
+
 
