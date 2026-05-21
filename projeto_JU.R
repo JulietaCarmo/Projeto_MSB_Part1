@@ -563,24 +563,28 @@ head(ora_kegg_gene_list)
 ora_kegg_sig_genes_df = subset(df2, p_val < 0.05 & 
                                  abs(avg_log2FC) > 2)
 
-genes_kegg <- rownames(ora_kegg_sig_genes_df)
+head(ora_kegg_sig_genes_df)
+
+genes_kegg <- ora_kegg_sig_genes_df$ENTREZID
 genes_kegg <- na.omit(genes_kegg)
 # 3 genes ---> [1] "IL1B"   "IFI27"  "CYP1B1"
 
 length(genes_kegg) # [1] 3
 head(genes_kegg) # [1] "IL1B"   "IFI27"  "CYP1B1"
 
+head(genes_kegg)
+str(genes_kegg)
+
 ## Create enrichKEGG object
 eKEGG_Monocyts <- enrichKEGG(gene = genes_kegg, 
                              universe = names(ora_kegg_gene_list), 
-                             organism = organism, 
+                             organism = "hsa", 
                              pvalueCutoff = 0.05, 
                              keyType = "ncbi-geneid")
 head(eKEGG_Monocyts)
+# No results
 
-
-
-~#############################################
+#############################################
 celltype <- "Macrophage1"
 
 # differential-expression table for BAL-Monocytes
